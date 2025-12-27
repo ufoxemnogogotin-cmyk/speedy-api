@@ -2,24 +2,29 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
+
 app.use(cors());
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "10mb" }));
 
 const SPEEDY_BASE = "https://api.speedy.bg/v1";
 
 // ----------------------
-// JSON helper (standard Speedy call)
+// Helpers
 // ----------------------
+function authEnvelope(extraBody) {
+  return {
+    userName: process.env.SPEEDY_USERNAME,
+    password: process.env.SPEEDY_PASSWORD,
+    language: "BG",
+    ...(extraBody || {}),
+  };
+}
+
 async function speedyPostJson(path, body) {
   const res = await fetch(SPEEDY_BASE + path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userName: process.env.SPEEDY_USERNAME,
-      password: process.env.SPEEDY_PASSWORD,
-      language: "BG",
-      ...body,
-    }),
+    body: JSON.stringify(authEnvelope(body)),
   });
 
   const text = await res.text();
@@ -33,32 +38,24 @@ async function speedyPostJson(path, body) {
   return { ok: res.ok, status: res.status, json, raw: text };
 }
 
-// ----------------------
-// PDF helper (Speedy print -> PDF)
-// ----------------------
 async function speedyPostPdf(path, body) {
   const res = await fetch(SPEEDY_BASE + path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userName: process.env.SPEEDY_USERNAME,
-      password: process.env.SPEEDY_PASSWORD,
-      language: "BG",
-      ...body,
-    }),
+    body: JSON.stringify(authEnvelope(body)),
   });
 
   const ct = res.headers.get("content-type") || "";
 
-  // ако Speedy върне грешка като JSON/text
+  // Ако Speedy върне грешка като JSON/text
   if (!ct.includes("application/pdf")) {
     const text = await res.text();
-    return { ok: false, status: res.status, raw: text };
+    return { ok: false, status: res.status, raw: text, contentType: ct };
   }
 
   const ab = await res.arrayBuffer();
   const buf = Buffer.from(ab);
-  return { ok: res.ok, status: res.status, pdf: buf };
+  return { ok: res.ok, status: res.status, pdf: buf, contentType: ct };
 }
 
 // ----------------------
@@ -68,11 +65,13 @@ app.get("/", (req, res) => {
   res.type("text").send("OK: speedy-api proxy is live ✅");
 });
 
-// ----------------------
-// EXISTING: GET /sites?name=София
-// ----------------------
+// ======================================================
+// ✅ Office & site lookup (както си го имал)
+// GET /sites?name=София
+// GET /offices?siteId=68134
+// ======================================================
 app.get("/sites", async (req, res) => {
-  const name = req.query.name || "";
+  const name = String(req.query.name || "");
 
   const result = await speedyPostJson("/location/site/", {
     countryId: 100,
@@ -80,18 +79,16 @@ app.get("/sites", async (req, res) => {
   });
 
   if (!result.ok) {
-    return res.status(result.status).json({
+    return res.status(result.status || 500).json({
       error: "Speedy error",
       details: result.raw,
+      json: result.json || null,
     });
   }
 
-  res.json(result.json?.sites || []);
+  return res.json(result.json?.sites || []);
 });
 
-// ----------------------
-// EXISTING: GET /offices?siteId=68134
-// ----------------------
 app.get("/offices", async (req, res) => {
   const siteId = Number(req.query.siteId || 0);
   if (!siteId) return res.status(400).json({ error: "Missing siteId" });
@@ -99,20 +96,89 @@ app.get("/offices", async (req, res) => {
   const result = await speedyPostJson("/location/office/", { siteId });
 
   if (!result.ok) {
-    return res.status(result.status).json({
+    return res.status(result.status || 500).json({
       error: "Speedy error",
       details: result.raw,
+      json: result.json || null,
     });
   }
 
-  res.json(result.json?.offices || []);
+  return res.json(result.json?.offices || []);
 });
 
 // ======================================================
-// ✅ NEW: POST /createShipment
-// Cloudflare Worker ще POST-ва payload за shipment тук
+// ✅ Speedy-like endpoints (за да е 1:1 API стил)
+// POST /location/site     -> calls /location/site/
+// POST /location/office   -> calls /location/office/
+// ======================================================
+app.post("/location/site", async (req, res) => {
+  const result = await speedyPostJson("/location/site/", req.body);
+
+  if (!result.ok) {
+    return res.status(result.status || 500).json({
+      error: "Speedy location/site failed",
+      details: result.raw,
+      json: result.json || null,
+    });
+  }
+
+  return res.json(result.json);
+});
+
+app.post("/location/office", async (req, res) => {
+  const result = await speedyPostJson("/location/office/", req.body);
+
+  if (!result.ok) {
+    return res.status(result.status || 500).json({
+      error: "Speedy location/office failed",
+      details: result.raw,
+      json: result.json || null,
+    });
+  }
+
+  return res.json(result.json);
+});
+
+// ======================================================
+// ✅ MAIN: shipment + print (Speedy-compatible)
+// Cloudflare Worker should call:
+//   POST /shipment
+//   POST /print
+// ======================================================
+app.post("/shipment", async (req, res) => {
+  const result = await speedyPostJson("/shipment/", req.body);
+
+  if (!result.ok) {
+    return res.status(result.status || 500).json({
+      error: "Speedy shipment failed",
+      details: result.raw,
+      json: result.json || null,
+    });
+  }
+
+  return res.json(result.json);
+});
+
+app.post("/print", async (req, res) => {
+  const result = await speedyPostPdf("/print/", req.body);
+
+  if (!result.ok) {
+    return res.status(result.status || 500).json({
+      error: "Speedy print failed",
+      details: result.raw || "",
+      contentType: result.contentType || "",
+    });
+  }
+
+  res.setHeader("Content-Type", "application/pdf");
+  return res.send(result.pdf);
+});
+
+// ======================================================
+// ✅ Backwards compat (ако Worker-а ти още вика /createShipment)
 // ======================================================
 app.post("/createShipment", async (req, res) => {
+  // alias към /shipment
   const result = await speedyPostJson("/shipment/", req.body);
 
   if (!result.ok) {
@@ -124,24 +190,6 @@ app.post("/createShipment", async (req, res) => {
   }
 
   return res.json(result.json);
-});
-
-// ======================================================
-// ✅ NEW: POST /print
-// Cloudflare Worker ще POST-ва print request тук
-// ======================================================
-app.post("/print", async (req, res) => {
-  const result = await speedyPostPdf("/print/", req.body);
-
-  if (!result.ok) {
-    return res.status(result.status || 500).json({
-      error: "Speedy print failed",
-      details: result.raw || "",
-    });
-  }
-
-  res.setHeader("Content-Type", "application/pdf");
-  return res.send(result.pdf);
 });
 
 const PORT = process.env.PORT || 3000;
