@@ -46,8 +46,7 @@ app.get("/sites", async (req, res) => {
       details: result.raw,
     });
   }
-
-  res.json(result.json.sites  []);
+res.json(result.json?.sites || []);
 });
 
 // GET /offices?siteId=68134
@@ -68,7 +67,7 @@ app.get("/offices", async (req, res) => {
     });
   }
 
-  res.json(result.json.offices  []);
+  res.json(result.json?.offices || []);
 });
 
 // POST /calculate
