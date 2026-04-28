@@ -33,7 +33,7 @@ async function speedyPost(path, body) {
 
 // GET /sites?name=София
 app.get("/sites", async (req, res) => {
-  const name = req.query.name  "";
+ const name = req.query.name || "";
 
   const result = await speedyPost("/location/site/", {
     countryId: 100,
@@ -52,7 +52,7 @@ app.get("/sites", async (req, res) => {
 
 // GET /offices?siteId=68134
 app.get("/offices", async (req, res) => {
-  const siteId = Number(req.query.siteId  0);
+  const siteId = Number(req.query.siteId || 0);
   if (!siteId) {
     return res.status(400).json({ error: "Missing siteId" });
   }
@@ -71,5 +71,69 @@ app.get("/offices", async (req, res) => {
   res.json(result.json.offices  []);
 });
 
+// POST /calculate
+app.post("/calculate", async (req, res) => {
+  const { type, siteId, officeId, weight } = req.body;
+
+  if (!siteId || !weight) {
+    return res.status(400).json({ error: "Missing siteId or weight" });
+  }
+
+  // 👉 ТУК СЛОЖИ ТВОЯ SPEEDY OFFICE (sender)
+  const SENDER_OFFICE_ID = Number(process.env.SPEEDY_SENDER_OFFICE_ID);
+
+  if (!SENDER_OFFICE_ID) {
+    return res.status(500).json({ error: "Missing sender office ID" });
+  }
+
+  const body = {
+    pickup: {
+      officeId: SENDER_OFFICE_ID
+    },
+    delivery: {},
+    content: {
+      parcelsCount: 1,
+      totalWeight: Number(weight)
+    }
+  };
+
+  if (type === "office") {
+    if (!officeId) {
+      return res.status(400).json({ error: "Missing officeId" });
+    }
+    body.delivery.officeId = Number(officeId);
+  } else {
+    body.delivery.siteId = Number(siteId);
+  }
+
+  const result = await speedyPost("/calculate/", body);
+
+  if (result.status !== 200) {
+    return res.status(result.status).json({
+      error: "Speedy calculate error",
+      details: result.raw,
+    });
+  }
+
+  try {
+    const price =
+      result.json?.calculations?.[0]?.price?.total ?? null;
+
+    if (!price) {
+      return res.status(500).json({
+        error: "No price returned",
+        raw: result.json
+      });
+    }
+
+    return res.json({ price });
+  } catch (e) {
+    return res.status(500).json({
+      error: "Parsing error",
+      raw: result.json
+    });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(Server running on port ${PORT}));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
