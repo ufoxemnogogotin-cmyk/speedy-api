@@ -103,6 +103,10 @@ const body = {
 
   delivery: {},
 
+  service: {
+    serviceId: 505
+  },
+
   recipient: {
     privatePerson: true,
     name: name || "Test User",
@@ -115,14 +119,21 @@ const body = {
   }
 };
 
-  if (type === "office") {
-    if (!officeId) {
-      return res.status(400).json({ error: "Missing officeId" });
-    }
-    body.delivery.officeId = Number(officeId);
-  } else {
-    body.delivery.siteId = Number(siteId);
+if (type === "office") {
+  if (!officeId || !siteId) {
+    return res.status(400).json({ error: "Missing officeId or siteId" });
   }
+
+  body.delivery.officeId = Number(officeId);
+  body.delivery.siteId = Number(siteId); // 🔥 ТОВА ТИ ЛИПСВАШЕ
+
+} else {
+  if (!siteId) {
+    return res.status(400).json({ error: "Missing siteId" });
+  }
+
+  body.delivery.siteId = Number(siteId);
+}
 
   const result = await speedyPost("/calculate/", body);
 
