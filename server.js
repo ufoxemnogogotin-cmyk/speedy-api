@@ -7,6 +7,12 @@ app.use(express.json());
 
 const SPEEDY_BASE = "https://api.speedy.bg/v1";
 
+function getTomorrowDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 async function speedyPost(path, body) {
   const res = await fetch(SPEEDY_BASE + path, {
     method: "POST",
@@ -103,9 +109,11 @@ app.post("/calculate", async (req, res) => {
       privatePerson: true
     },
 
- service: {
+service: {
   serviceIds: [type === "office" ? 505 : 503],
-  deferredDays: 1,
+  pickupDate: getTomorrowDate(),
+  autoAdjustPickupDate: true,
+  deferredDays: 0,
   additionalServices: {
     cod: {
       amount: Number(orderTotal || 0)
