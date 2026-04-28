@@ -75,11 +75,19 @@ app.get("/offices", async (req, res) => {
 
 // POST /calculate
 app.post("/calculate", async (req, res) => {
-  const { type, siteId, officeId, weight } = req.body;
+  const { type, siteId, officeId, weight, name, phone } = req.body;
 
-  if (!siteId || !weight) {
-    return res.status(400).json({ error: "Missing siteId or weight" });
-  }
+if (!weight) {
+  return res.status(400).json({ error: "Missing weight" });
+}
+
+if (type === "office" && !officeId) {
+  return res.status(400).json({ error: "Missing officeId" });
+}
+
+if (type === "address" && !siteId) {
+  return res.status(400).json({ error: "Missing siteId" });
+}
 
   // 👉 ТУК СЛОЖИ ТВОЯ SPEEDY OFFICE (sender)
   const SENDER_OFFICE_ID = Number(process.env.SPEEDY_SENDER_OFFICE_ID);
@@ -88,16 +96,24 @@ app.post("/calculate", async (req, res) => {
     return res.status(500).json({ error: "Missing sender office ID" });
   }
 
-  const body = {
-    pickup: {
-      officeId: SENDER_OFFICE_ID
-    },
-    delivery: {},
-    content: {
-      parcelsCount: 1,
-      totalWeight: Number(weight)
-    }
-  };
+const body = {
+  pickup: {
+    officeId: SENDER_OFFICE_ID
+  },
+
+  delivery: {},
+
+  recipient: {
+    privatePerson: true,
+    name: name || "Test User",
+    phone1: phone || "0880000000"
+  },
+
+  content: {
+    parcelsCount: 1,
+    totalWeight: Number(weight)
+  }
+};
 
   if (type === "office") {
     if (!officeId) {
