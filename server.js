@@ -126,9 +126,9 @@ service: {
       totalWeight: Number(weight)
     },
 
-    payment: {
-      courierServicePayer: "RECIPIENT"
-    }
+ payment: {
+  courierServicePayer: "SENDER"
+}
   };
 
   if (type === "office") {
