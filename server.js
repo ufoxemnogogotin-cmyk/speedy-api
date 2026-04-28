@@ -40,12 +40,15 @@ app.get("/sites", async (req, res) => {
     name,
   });
 
-  if (result.status !== 200) {
-    return res.status(result.status).json({
-      error: "Speedy error",
-      details: result.raw,
-    });
-  }
+ if (result.status !== 200) {
+  console.log("❌ SPEEDY ERROR RAW:", result.raw);
+  console.log("❌ SPEEDY ERROR JSON:", result.json);
+
+  return res.status(500).json({
+    error: "Speedy calculate error",
+    details: result.json || result.raw,
+  });
+}
 res.json(result.json?.sites || []);
 });
 
