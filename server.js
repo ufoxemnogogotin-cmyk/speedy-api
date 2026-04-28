@@ -95,7 +95,7 @@ const body = {
     officeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID), // 👈 ползвай твоето име
     address: {
       siteId: Number(process.env.SENDER_SITE_ID),
-      countryId: 100
+      countryId: 100,
       fullAddress: "test"
     }
   },
