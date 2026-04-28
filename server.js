@@ -170,27 +170,28 @@ app.post("/calculate", async (req, res) => {
     });
   }
 
-  const priceBgn = calc?.price?.total ?? null;
+const speedyTotal = calc?.price?.total ?? null;
+const speedyCurrency = calc?.price?.currency || calc?.price?.currencyLocal || "EUR";
 
-  if (priceBgn === null || priceBgn === undefined) {
-    return res.status(500).json({
-      error: "No price returned",
-      raw: result.json,
-      sent: body
-    });
-  }
-
-  const priceEur = Number(priceBgn) / 1.95583;
-
-  return res.json({
-    price: Number(priceEur.toFixed(2)),
-    price_bgn: Number(priceBgn),
-    price_eur: Number(priceEur.toFixed(2)),
-    label: "€" + Number(priceEur).toFixed(2),
-    real: true,
-    free: false,
-    raw_price: calc.price
+if (speedyTotal === null || speedyTotal === undefined) {
+  return res.status(500).json({
+    error: "No price returned",
+    raw: result.json,
+    sent: body
   });
+}
+
+const priceEur = Number(speedyTotal);
+
+return res.json({
+  price: Number(priceEur.toFixed(2)),
+  price_eur: Number(priceEur.toFixed(2)),
+  currency: speedyCurrency,
+  label: "€" + Number(priceEur).toFixed(2),
+  real: true,
+  free: false,
+  raw_price: calc.price
+});
 });
 
 const PORT = process.env.PORT || 3000;
