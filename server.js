@@ -117,11 +117,6 @@ recipient: {
   privatePerson: true,
   name: name || "Test User",
   phone1: phone || "0880000000",
-
-  address: {
-    siteId: Number(siteId),   // 💥 ТОВА Е КЛЮЧА
-    countryId: 100
-  }
 },
 
   content: {
@@ -146,6 +141,13 @@ if (type === "office") {
   }
 
   body.delivery.siteId = Number(siteId);
+
+  // 🔥 ТУК добавяш address САМО за address доставка
+  body.recipient.address = {
+    siteId: Number(siteId),
+    countryId: 100,
+    fullAddress: "test"
+  };
 }
 
   const result = await speedyPost("/calculate/", body);
