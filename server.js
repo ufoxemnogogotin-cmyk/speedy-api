@@ -75,7 +75,7 @@ app.get("/offices", async (req, res) => {
 
 // POST /calculate
 app.post("/calculate", async (req, res) => {
-  const { type, siteId, officeId, weight, name, phone } = req.body;
+ const { type, siteId, officeId, weight, name, phone, orderTotal } = req.body;
 
 if (!weight) {
   return res.status(400).json({ error: "Missing weight" });
@@ -103,9 +103,14 @@ const body = {
     countryId: 100
   },
 
-  service: {
-    serviceId: type === "office" ? 505 : 503
-  },
+ service: {
+  serviceId: type === "office" ? 505 : 503,
+  additionalServices: {
+    cod: {
+      amount: Number(orderTotal || 0)
+    }
+  }
+},
 
   recipient: {
     privatePerson: true,
