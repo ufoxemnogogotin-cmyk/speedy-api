@@ -98,7 +98,9 @@ if (type === "address" && !siteId) {
 
 const body = {
   pickup: {
-    officeId: SENDER_OFFICE_ID
+    address: {
+      siteId: Number(process.env.SENDER_SITE_ID) // 👈 ново
+    }
   },
 
   delivery: {},
