@@ -112,11 +112,16 @@ const body = {
   }
 },
 
-  recipient: {
-    privatePerson: true,
-    name: name || "Test User",
-    phone1: phone || "0880000000"
-  },
+recipient: {
+  privatePerson: true,
+  name: name || "Test User",
+  phone1: phone || "0880000000",
+
+  address: {
+    siteId: Number(siteId),   // 💥 ТОВА Е КЛЮЧА
+    countryId: 100
+  }
+},
 
   content: {
     parcelsCount: 1,
@@ -129,7 +134,9 @@ if (type === "office") {
     return res.status(400).json({ error: "Missing officeId or siteId" });
   }
 
+  if (officeId) {
   body.delivery.officeId = Number(officeId);
+}
   body.delivery.siteId = Number(siteId); // 🔥 ТОВА ТИ ЛИПСВАШЕ
 
 } else {
