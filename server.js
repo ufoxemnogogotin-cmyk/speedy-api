@@ -99,32 +99,97 @@ app.post("/calculate", async (req, res) => {
     return res.status(400).json({ error: "Missing officeId" });
   }
 
-  const total = Number(orderTotal || 0);
+  const orderTotalEur = Number(orderTotal || 0);
 
-  // 🚚 FREE SHIPPING над/равно 100 евро
-  if (total >= 100) {
+  // 🚚 Безплатна доставка над/равно 100 евро
+  if (orderTotalEur >= 100) {
     return res.json({
       price: 0,
+      price_bgn: 0,
+      price_eur: 0,
       label: "Безплатна",
-      fake: true
+      real: true,
+      free: true
     });
   }
 
-  // 🧪 ФИКТИВНИ ЦЕНИ — тук си ги настройваш както искаш
-  let price = 0;
+  const body = {
+    sender: {
+      privatePerson: false,
+      dropoffOfficeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID)
+    },
+
+    recipient: {
+      privatePerson: true
+    },
+
+    service: {
+      serviceIds: [type === "office" ? 505 : 503],
+      pickupDate: getTomorrowDate(),
+      autoAdjustPickupDate: true,
+      deferredDays: 0
+    },
+
+    content: {
+      parcelsCount: 1,
+      totalWeight: Number(weight)
+    },
+
+    payment: {
+      courierServicePayer: "SENDER"
+    }
+  };
 
   if (type === "office") {
-    price = 5.99; // Спиди до офис
-  } else if (type === "address") {
-    price = 7.99; // Спиди до адрес
+    body.recipient.pickupOfficeId = Number(officeId);
   } else {
-    price = 6.99;
+    body.recipient.addressLocation = {
+      countryId: 100,
+      siteId: Number(siteId)
+    };
   }
 
+  const result = await speedyPost("/calculate", body);
+
+  if (result.status !== 200) {
+    return res.status(result.status).json({
+      error: "Speedy calculate error",
+      details: result.json || result.raw,
+      sent: body
+    });
+  }
+
+  const calc = result.json?.calculations?.[0];
+
+  if (calc?.error) {
+    return res.status(500).json({
+      error: "Speedy calculation returned error",
+      details: calc.error,
+      raw: result.json,
+      sent: body
+    });
+  }
+
+  const priceBgn = calc?.price?.total ?? null;
+
+  if (priceBgn === null || priceBgn === undefined) {
+    return res.status(500).json({
+      error: "No price returned",
+      raw: result.json,
+      sent: body
+    });
+  }
+
+  const priceEur = Number(priceBgn) / 1.95583;
+
   return res.json({
-    price,
-    label: price.toFixed(2) + " лв",
-    fake: true
+    price: Number(priceEur.toFixed(2)),
+    price_bgn: Number(priceBgn),
+    price_eur: Number(priceEur.toFixed(2)),
+    label: "€" + Number(priceEur).toFixed(2),
+    real: true,
+    free: false,
+    raw_price: calc.price
   });
 });
 
