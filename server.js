@@ -103,14 +103,15 @@ app.post("/calculate", async (req, res) => {
       privatePerson: true
     },
 
-    service: {
-      serviceIds: [type === "office" ? 505 : 503],
-      additionalServices: {
-        cod: {
-          amount: Number(orderTotal || 0)
-        }
-      }
-    },
+ service: {
+  serviceIds: [type === "office" ? 505 : 503],
+  deferredDays: 1,
+  additionalServices: {
+    cod: {
+      amount: Number(orderTotal || 0)
+    }
+  }
+},
 
     content: {
       parcelsCount: 1,
