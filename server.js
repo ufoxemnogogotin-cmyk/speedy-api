@@ -90,18 +90,21 @@ if (type === "address" && !siteId) {
 }
 
   
-
 const body = {
   pickup: {
+    officeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID), // 👈 ползвай твоето име
     address: {
-      siteId: Number(process.env.SENDER_SITE_ID) // 👈 ново
+      siteId: Number(process.env.SENDER_SITE_ID),
+      countryId: 100
     }
   },
 
-  delivery: {},
+  delivery: {
+    countryId: 100
+  },
 
   service: {
-    serviceId: 505
+    serviceId: type === "office" ? 505 : 503
   },
 
   recipient: {
