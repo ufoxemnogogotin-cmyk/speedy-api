@@ -75,108 +75,83 @@ app.get("/offices", async (req, res) => {
 
 // POST /calculate
 app.post("/calculate", async (req, res) => {
- const { type, siteId, officeId, weight, name, phone, orderTotal } = req.body;
+  const { type, siteId, officeId, weight, name, phone, orderTotal } = req.body;
 
-if (!weight) {
-  return res.status(400).json({ error: "Missing weight" });
-}
-
-if (type === "office" && !officeId) {
-  return res.status(400).json({ error: "Missing officeId" });
-}
-
-if (type === "address" && !siteId) {
-  return res.status(400).json({ error: "Missing siteId" });
-}
-
-  
-const body = {
-  pickup: {
-    officeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID), // 👈 ползвай твоето име
-    address: {
-      siteId: Number(process.env.SENDER_SITE_ID),
-      countryId: 100,
-      fullAddress: "test"
-    }
-  },
-
-  delivery: {
-    countryId: 100
-  },
-
- service: {
-  serviceId: type === "office" ? 505 : 503,
-  additionalServices: {
-    cod: {
-      amount: Number(orderTotal || 0)
-    }
-  }
-},
-
-recipient: {
-  privatePerson: true,
-  name: name || "Test User",
-  phone1: phone || "0880000000",
-},
-
-  content: {
-    parcelsCount: 1,
-    totalWeight: Number(weight)
-  }
-};
-
-if (type === "office") {
-  if (!officeId || !siteId) {
-    return res.status(400).json({ error: "Missing officeId or siteId" });
+  if (!type) {
+    return res.status(400).json({ error: "Missing type" });
   }
 
-  if (officeId) {
-  body.delivery.officeId = Number(officeId);
-}
-  body.delivery.siteId = Number(siteId); // 🔥 ТОВА ТИ ЛИПСВАШЕ
+  if (!weight) {
+    return res.status(400).json({ error: "Missing weight" });
+  }
 
-} else {
   if (!siteId) {
     return res.status(400).json({ error: "Missing siteId" });
   }
 
-  body.delivery.siteId = Number(siteId);
+  if (type === "office" && !officeId) {
+    return res.status(400).json({ error: "Missing officeId" });
+  }
 
-  // 🔥 ТУК добавяш address САМО за address доставка
-  body.recipient.address = {
-    siteId: Number(siteId),
-    countryId: 100,
-    fullAddress: "test"
+  const body = {
+    sender: {
+      privatePerson: false,
+      dropoffOfficeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID)
+    },
+
+    recipient: {
+      privatePerson: true
+    },
+
+    service: {
+      serviceIds: [type === "office" ? 505 : 503],
+      additionalServices: {
+        cod: {
+          amount: Number(orderTotal || 0)
+        }
+      }
+    },
+
+    content: {
+      parcelsCount: 1,
+      totalWeight: Number(weight)
+    },
+
+    payment: {
+      courierServicePayer: "RECIPIENT"
+    }
   };
-}
 
-  const result = await speedyPost("/calculate/", body);
+  if (type === "office") {
+    body.recipient.pickupOfficeId = Number(officeId);
+  } else {
+    body.recipient.addressLocation = {
+      countryId: 100,
+      siteId: Number(siteId)
+    };
+  }
+
+  const result = await speedyPost("/calculate", body);
 
   if (result.status !== 200) {
     return res.status(result.status).json({
       error: "Speedy calculate error",
-      details: result.raw,
+      details: result.json || result.raw,
+      sent: body
     });
   }
 
-  try {
-    const price =
-      result.json?.calculations?.[0]?.price?.total ?? null;
+  const price = result.json?.calculations?.[0]?.price?.total ?? null;
 
-    if (!price) {
-      return res.status(500).json({
-        error: "No price returned",
-        raw: result.json
-      });
-    }
-
-    return res.json({ price });
-  } catch (e) {
+  if (!price) {
     return res.status(500).json({
-      error: "Parsing error",
-      raw: result.json
+      error: "No price returned",
+      raw: result.json,
+      sent: body
     });
   }
+
+  return res.json({ price });
 });
 
 const PORT = process.env.PORT || 3000;
