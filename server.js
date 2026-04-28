@@ -114,10 +114,10 @@ app.post("/calculate", async (req, res) => {
   }
 
   const body = {
-    sender: {
-      privatePerson: false,
-      dropoffOfficeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID)
-    },
+ sender: {
+  clientId: Number(process.env.SPEEDY_CLIENT_ID),
+  dropoffOfficeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID)
+},
 
     recipient: {
       privatePerson: true
