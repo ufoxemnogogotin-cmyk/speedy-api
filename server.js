@@ -96,6 +96,7 @@ const body = {
     address: {
       siteId: Number(process.env.SENDER_SITE_ID),
       countryId: 100
+      fullAddress: "test"
     }
   },
 
