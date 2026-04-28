@@ -81,7 +81,7 @@ app.get("/offices", async (req, res) => {
 
 // POST /calculate
 app.post("/calculate", async (req, res) => {
- const { type, siteId, officeId, weight, orderTotal, address, zip } = req.body;
+ const { type, siteId, officeId, weight, orderTotal, address, zip, paymentMethod } = req.body;
 
   if (!type) {
     return res.status(400).json({ error: "Missing type" });
@@ -100,17 +100,20 @@ app.post("/calculate", async (req, res) => {
   }
 
   const orderTotalEur = Number(orderTotal || 0);
+  const payMethod = paymentMethod === "card" ? "card" : "cod";
 
   // 🚚 Безплатна доставка над/равно 100 евро
   if (orderTotalEur >= 100) {
-    return res.json({
-      price: 0,
-      price_bgn: 0,
-      price_eur: 0,
-      label: "Безплатна",
-      real: true,
-      free: true
-    });
+return res.json({
+  price: 0,
+  price_bgn: 0,
+  price_eur: 0,
+  currency: "EUR",
+  label: "Безплатна",
+  real: true,
+  free: true,
+  paymentMethod: payMethod
+});
   }
 
   const body = {
@@ -129,17 +132,21 @@ service: {
   autoAdjustPickupDate: true,
   deferredDays: 0,
 
-  additionalServices: {
-    cod: {
-      amount: orderTotalEur,
-      processingType: "POSTAL_MONEY_TRANSFER"
-    },
+additionalServices: {
+  declaredValue: {
+    amount: orderTotalEur,
+    fragile: false
+  },
 
-    declaredValue: {
-      amount: orderTotalEur,
-      fragile: false
-    }
-  }
+  ...(payMethod === "cod"
+    ? {
+        cod: {
+          amount: orderTotalEur,
+          processingType: "POSTAL_MONEY_TRANSFER"
+        }
+      }
+    : {})
+}
 },
 
     content: {
@@ -207,6 +214,7 @@ return res.json({
   label: "€" + Number(priceEur).toFixed(2),
   real: true,
   free: false,
+  paymentMethod: payMethod,
   raw_price: calc.price
 });
 });
