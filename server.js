@@ -123,12 +123,24 @@ app.post("/calculate", async (req, res) => {
       privatePerson: true
     },
 
-    service: {
-      serviceIds: [type === "office" ? 505 : 503],
-      pickupDate: getTomorrowDate(),
-      autoAdjustPickupDate: true,
-      deferredDays: 0
+service: {
+  serviceIds: [type === "office" ? 505 : 503],
+  pickupDate: getTomorrowDate(),
+  autoAdjustPickupDate: true,
+  deferredDays: 0,
+
+  additionalServices: {
+    cod: {
+      amount: orderTotalEur,
+      processingType: "POSTAL_MONEY_TRANSFER"
     },
+
+    declaredValue: {
+      amount: orderTotalEur,
+      fragile: false
+    }
+  }
+},
 
     content: {
       parcelsCount: 1,
