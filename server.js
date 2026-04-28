@@ -81,7 +81,7 @@ app.get("/offices", async (req, res) => {
 
 // POST /calculate
 app.post("/calculate", async (req, res) => {
-  const { type, siteId, officeId, weight, orderTotal } = req.body;
+ const { type, siteId, officeId, weight, orderTotal, address, zip } = req.body;
 
   if (!type) {
     return res.status(400).json({ error: "Missing type" });
@@ -124,7 +124,7 @@ app.post("/calculate", async (req, res) => {
     },
 
 service: {
-  serviceIds: [type === "office" ? 505 : 503],
+  serviceIds: [505],
   pickupDate: getTomorrowDate(),
   autoAdjustPickupDate: true,
   deferredDays: 0,
@@ -152,14 +152,19 @@ service: {
     }
   };
 
-  if (type === "office") {
-    body.recipient.pickupOfficeId = Number(officeId);
-  } else {
-    body.recipient.addressLocation = {
-      countryId: 100,
-      siteId: Number(siteId)
-    };
+if (type === "office") {
+  body.recipient.pickupOfficeId = Number(officeId);
+} else {
+  body.recipient.addressLocation = {
+    countryId: 100,
+    siteId: Number(siteId),
+    fullAddress: address || "Адрес"
+  };
+
+  if (zip) {
+    body.recipient.addressLocation.postCode = String(zip);
   }
+}
 
   const result = await speedyPost("/calculate", body);
 
