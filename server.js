@@ -81,7 +81,7 @@ app.get("/offices", async (req, res) => {
 
 // POST /calculate
 app.post("/calculate", async (req, res) => {
-  const { type, siteId, officeId, weight, name, phone, orderTotal } = req.body;
+  const { type, siteId, officeId, weight, orderTotal } = req.body;
 
   if (!type) {
     return res.status(400).json({ error: "Missing type" });
@@ -99,68 +99,33 @@ app.post("/calculate", async (req, res) => {
     return res.status(400).json({ error: "Missing officeId" });
   }
 
-  const body = {
-    sender: {
-      privatePerson: false,
-      dropoffOfficeId: Number(process.env.SPEEDY_SENDER_OFFICE_ID)
-    },
+  const total = Number(orderTotal || 0);
 
-    recipient: {
-      privatePerson: true
-    },
-
-service: {
-  serviceIds: [type === "office" ? 505 : 503],
-  pickupDate: getTomorrowDate(),
-  autoAdjustPickupDate: true,
-  deferredDays: 0,
-  additionalServices: {
-    cod: {
-      amount: Number(orderTotal || 0)
-    }
+  // 🚚 FREE SHIPPING над/равно 100 евро
+  if (total >= 100) {
+    return res.json({
+      price: 0,
+      label: "Безплатна",
+      fake: true
+    });
   }
-},
 
-    content: {
-      parcelsCount: 1,
-      totalWeight: Number(weight)
-    },
-
- payment: {
-  courierServicePayer: "SENDER"
-}
-  };
+  // 🧪 ФИКТИВНИ ЦЕНИ — тук си ги настройваш както искаш
+  let price = 0;
 
   if (type === "office") {
-    body.recipient.pickupOfficeId = Number(officeId);
+    price = 5.99; // Спиди до офис
+  } else if (type === "address") {
+    price = 7.99; // Спиди до адрес
   } else {
-    body.recipient.addressLocation = {
-      countryId: 100,
-      siteId: Number(siteId)
-    };
+    price = 6.99;
   }
 
-  const result = await speedyPost("/calculate", body);
-
-  if (result.status !== 200) {
-    return res.status(result.status).json({
-      error: "Speedy calculate error",
-      details: result.json || result.raw,
-      sent: body
-    });
-  }
-
-  const price = result.json?.calculations?.[0]?.price?.total ?? null;
-
-  if (!price) {
-    return res.status(500).json({
-      error: "No price returned",
-      raw: result.json,
-      sent: body
-    });
-  }
-
-  return res.json({ price });
+  return res.json({
+    price,
+    label: price.toFixed(2) + " лв",
+    fake: true
+  });
 });
 
 const PORT = process.env.PORT || 3000;
