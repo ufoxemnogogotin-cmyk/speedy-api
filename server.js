@@ -89,12 +89,7 @@ if (type === "address" && !siteId) {
   return res.status(400).json({ error: "Missing siteId" });
 }
 
-  // 👉 ТУК СЛОЖИ ТВОЯ SPEEDY OFFICE (sender)
-  const SENDER_OFFICE_ID = Number(process.env.SPEEDY_SENDER_OFFICE_ID);
-
-  if (!SENDER_OFFICE_ID) {
-    return res.status(500).json({ error: "Missing sender office ID" });
-  }
+  
 
 const body = {
   pickup: {
